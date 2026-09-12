@@ -14,7 +14,7 @@ class Config:
     MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL') is not None
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    ADMINS = ['491281998@qq.com']
+    ADMINS = [a for a in os.environ.get('ADMINS', '').split(',') if a]
     
     POSTS_PER_PAGE = 25
     
@@ -24,3 +24,4 @@ class Config:
     TENCENT_SECRET_KEY = os.environ.get('TENCENT_SECRET_KEY')
     
     ELASTICSEARCH_URL = os.environ.get('ELASTICSEARCH_URL')
+    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'

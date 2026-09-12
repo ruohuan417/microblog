@@ -59,7 +59,7 @@ class SearchableMixin(object):
     @classmethod
     def reindex(cls):
         for obj in db.session.scalars(sa.select(cls)):
-            add_to_index(cls.__table__, obj)
+            add_to_index(cls.__tablename__, obj)
 
 db.event.listen(db.session, 'before_commit', SearchableMixin.before_commit)
 db.event.listen(db.session, 'after_commit', SearchableMixin.after_commit)
@@ -73,7 +73,7 @@ class PaginatedAPIMixin(object):
             'items': [item.to_dict() for item in resources.items],
             '_meta': {
                 'page': page,
-                'per+page': per_page,
+                'per_page': per_page,
                 'total_pages': resources.pages,
                 'total_items': resources.total
             },

@@ -1,12 +1,17 @@
 from datetime import datetime, timezone, timedelta
 import unittest
+import fakeredis
+from rq import Queue
 from app import create_app, db
 from app.models import User, Post
+from app.email import send_email
 from config import Config
 
 class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    ELASTICSEARCH_URL = None
+    REDIS_URL = None
 
 class UserModelCase(unittest.TestCase):
     def setUp(self):
@@ -92,6 +97,39 @@ class UserModelCase(unittest.TestCase):
         self.assertEqual(f2, [p2, p3])
         self.assertEqual(f3, [p3, p4])
         self.assertEqual(f4, [p4])
+
+
+class EmailTaskCase(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app(TestConfig)
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+        db.create_all()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        self.app_context.pop()
+
+    def test_send_email_falls_back_to_thread(self):
+        self.assertIsNone(self.app.task_queue)
+        thr = send_email(subject='t', sender='admin@example.com',
+                         recipients=['u@example.com'],
+                         text_body='body', html_body='<p>body</p>')
+        self.assertIsNotNone(thr)
+
+    def test_send_email_enqueued_to_redis(self):
+        fake = fakeredis.FakeStrictRedis()
+        queue = Queue('test-tasks', connection=fake)
+        self.app.task_queue = queue
+        send_email(subject='t', sender='admin@example.com',
+                   recipients=['u@example.com'],
+                   text_body='body', html_body='<p>body</p>')
+        self.assertEqual(len(queue), 1)
+        job = queue.jobs[0]
+        self.assertEqual(job.func_name, 'app.email._task_send_email')
+        self.assertEqual(job.args, ('t', 'admin@example.com',
+                                    ['u@example.com'], 'body', '<p>body</p>'))
         
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -10,37 +10,22 @@ def translate(text, source_language, dest_language):
     if 'TENCENT_SECRET_ID' not in current_app.config or \
         'TENCENT_SECRET_KEY' not in current_app.config:
         return _('Error: the translation service is not configured.')
-    
-    #try:
-        cred = credential.Credential(
-            app.config['TENCENT_SECRET_ID'],
-            app.config['TENCENT_SECRET_KEY']
-        )
-        client = tmt_client.TmtClient(cred, "ap-shanghai")
-        req = models.TextTranslateRequest()
-        params = {
-            "SourceText": text, 
-            "Source": source_language, 
-            "Target": dest_language, 
-            "ProjectID": 0
-        }
-        req.from_json_string(json.dumps(params))
-        resp = client.TextTranslate(req)
-        return resp.TargetText
-    #except TencentCloudSDKException as err:
-        return _('Error: the translation service failed.')
+
     cred = credential.Credential(
-            current_app.config['TENCENT_SECRET_ID'],
-            current_app.config['TENCENT_SECRET_KEY']
-        )
+        current_app.config['TENCENT_SECRET_ID'],
+        current_app.config['TENCENT_SECRET_KEY']
+    )
     client = tmt_client.TmtClient(cred, "ap-shanghai")
     req = models.TextTranslateRequest()
     params = {
-            "SourceText": text, 
-            "Source": source_language, 
-            "Target": dest_language, 
-            "ProjectId": 0
-        }
+        "SourceText": text,
+        "Source": source_language,
+        "Target": dest_language,
+        "ProjectId": 0
+    }
     req.from_json_string(json.dumps(params))
-    resp = client.TextTranslate(req)
-    return resp.TargetText
+    try:
+        resp = client.TextTranslate(req)
+        return resp.TargetText
+    except TencentCloudSDKException as err:
+        return _('Error: the translation service failed.')

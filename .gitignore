@@ -40,5 +40,9 @@ vagrant_microblog/
 .env
 .venv/
 app.db
-microblog.log*
+*.db
+*.log
 mail_test.py
+_load_test.db
+_load_test_server.log
+.codeartsdoer/

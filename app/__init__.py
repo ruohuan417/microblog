@@ -8,8 +8,21 @@ from logging.handlers import SMTPHandler, RotatingFileHandler
 import os
 from flask_mail import Mail
 from flask_moment import Moment
-from flask_babel import Babel, lazy_gettext as _l 
+from flask_babel import Babel, lazy_gettext as _l
 from elasticsearch import Elasticsearch
+from redis import Redis
+from rq import Queue
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+@event.listens_for(Engine, 'connect')
+def _set_sqlite_pragmas(dbapi_connection, connection_record):
+    if type(dbapi_connection).__module__.startswith('sqlite3'):
+        cursor = dbapi_connection.cursor()
+        cursor.execute('PRAGMA journal_mode=WAL')
+        cursor.execute('PRAGMA synchronous=NORMAL')
+        cursor.execute('PRAGMA busy_timeout=5000')
+        cursor.close()
 
 def get_locale():
     return request.accept_languages.best_match(current_app.config['LANGUAGES'])
@@ -36,6 +49,12 @@ def create_app(config_class=Config):
     babel.init_app(app, locale_selector=get_locale)
     app.elasticsearch = Elasticsearch([app.config['ELASTICSEARCH_URL']]) \
         if app.config['ELASTICSEARCH_URL'] else None
+    if app.config['REDIS_URL']:
+        app.redis = Redis.from_url(app.config['REDIS_URL'])
+        app.task_queue = Queue('microblog-tasks', connection=app.redis)
+    else:
+        app.redis = None
+        app.task_queue = None
 
     from app.errors import bp as errors_bp
     app.register_blueprint(errors_bp)
@@ -54,7 +73,7 @@ def create_app(config_class=Config):
     
     
     if not app.debug and not app.testing:
-        if app.config['MAIL_SERVER']:
+        if app.config['MAIL_SERVER'] and app.config['ADMINS']:
             auth = None
             if app.config['MAIL_USERNAME'] or app.config['MAIL_PASSWORD']:
                 auth = (app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])

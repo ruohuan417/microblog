@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from flask import render_template, flash, redirect, url_for, request, g, \
     current_app
 from flask_login import current_user, login_required
@@ -15,8 +15,13 @@ from app.main.forms import SearchForm, MessageForm
 @bp.before_request
 def before_request():
     if current_user.is_authenticated:
-        current_user.last_seen = datetime.now(timezone.utc)
-        db.session.commit()
+        now = datetime.now(timezone.utc)
+        last = current_user.last_seen
+        if last is not None and last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        if last is None or now - last > timedelta(seconds=60):
+            current_user.last_seen = now
+            db.session.commit()
         g.search_form = SearchForm()
     g.locale = str(get_locale())
     
